@@ -22,6 +22,8 @@ These environment variables are specified using the [balenaCloud dashboard](http
 | `dualScreen` | `True` (if you are using two displays)
 | `screen1Platform` | `1` (sets the platform you want to have displayed on the first or single-screen display)
 | `screen2Platform` | `2` (sets the platform you want to have displayed on the second display)
+| `screen1PlatformSchedule` | `06:00-09:30=1,09:30-18:00=2` (time-based platform for screen 1, overrides `screen1Platform` during matching windows; format is `HH:MM-HH:MM=platform` entries separated by commas)
+| `screen2PlatformSchedule` | `06:00-09:30=3,09:30-18:00=4` (time-based platform for screen 2, overrides `screen2Platform` during matching windows; same format as above)
 | `individualStationDepartureTime` | `False` (Displays the estimated or scheduled time of the service at each leg of a journey)
 | `numericPlatformsOnly` | `False` This will only show numeric platforms, some stations may have local services that use alphabetic stations for local services (this will remove stations like 3A, 4B).
 | `fpsTime` | `4` (adjusts how often the effective FPS is displayed)

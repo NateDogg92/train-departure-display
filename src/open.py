@@ -12,3 +12,13 @@ def is_time_between(begin_time, end_time, check_time=None):
 
 def isRun(start_hour, end_hour):
     return is_time_between(time(start_hour, 0), time(end_hour, 0))
+
+
+def platformForTime(schedule, fallback=""):
+    now = datetime.now().time()
+    for entry in schedule:
+        start_h, start_m = [int(x) for x in entry['start'].split(':')]
+        end_h, end_m = [int(x) for x in entry['end'].split(':')]
+        if is_time_between(time(start_h, start_m), time(end_h, end_m), now):
+            return entry['platform']
+    return fallback
