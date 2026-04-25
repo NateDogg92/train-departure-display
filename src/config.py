@@ -10,6 +10,19 @@ def parsePlatformData(platform):
     else:
         return ""
 
+def parsePlatformSchedule(schedule_str):
+    if not schedule_str:
+        return []
+    entries = []
+    pattern = re.compile(r'^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})=(.+)$')
+    for entry in schedule_str.split(','):
+        m = pattern.match(entry.strip())
+        if m:
+            platform = parsePlatformData(m.group(3).strip())
+            if platform:
+                entries.append({'start': m.group(1), 'end': m.group(2), 'platform': platform})
+    return entries
+
 def loadConfig():
     data = {
         "journey": {},
@@ -57,6 +70,8 @@ def loadConfig():
     data["journey"]['timeOffset'] = os.getenv("timeOffset") or "0"
     data["journey"]["screen1Platform"] = parsePlatformData(os.getenv("screen1Platform"))
     data["journey"]["screen2Platform"] = parsePlatformData(os.getenv("screen2Platform"))
+    data["journey"]["screen1PlatformSchedule"] = parsePlatformSchedule(os.getenv("screen1PlatformSchedule") or "")
+    data["journey"]["screen2PlatformSchedule"] = parsePlatformSchedule(os.getenv("screen2PlatformSchedule") or "")
     data["journey"]["numericPlatformsOnly"] = os.getenv("numericPlatformsOnly", "False").lower() == "true"
     
     data["api"]["apiKey"] = os.getenv("apiKey") or None
