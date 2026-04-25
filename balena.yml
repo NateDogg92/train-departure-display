@@ -90,6 +90,8 @@ data:
     - timeOffset: 0
     - screen1Platform: null
     - screen2Platform: null
+    - screen1PlatformSchedule: null
+    - screen2PlatformSchedule: null
     - individualStationDepartureTime: false
     - showDepartureNumbers: false
     - firstDepartureBold: true

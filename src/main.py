@@ -582,11 +582,13 @@ try:
                             nextStations = data[1]
                             station = data[2]
                             screen1Platform = platformForTime(config["journey"]["screen1PlatformSchedule"], config["journey"]["screen1Platform"])
+                            print(f'Screen 1 active platform: "{screen1Platform or "all"}"')
                             screenData = platform_filter(departureData, screen1Platform, station, config["journey"]["numericPlatformsOnly"])
                             virtual = drawSignage(device, width=widgetWidth, height=widgetHeight, data=screenData, screen_id='screen1')
 
                             if config['dualScreen']:
                                 screen2Platform = platformForTime(config["journey"]["screen2PlatformSchedule"], config["journey"]["screen2Platform"])
+                                print(f'Screen 2 active platform: "{screen2Platform or "all"}"')
                                 screen1Data = platform_filter(departureData, screen2Platform, station, config["journey"]["numericPlatformsOnly"])
                                 virtual1 = drawSignage(device1, width=widgetWidth, height=widgetHeight, data=screen1Data, screen_id='screen2')
 
