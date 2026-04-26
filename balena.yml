@@ -93,6 +93,7 @@ data:
     - screen1PlatformSchedule: null
     - screen2PlatformSchedule: null
     - platformScheduleWeekdayOnly: true
+    - testDisruptionMessage: null
     - individualStationDepartureTime: false
     - showDepartureNumbers: false
     - firstDepartureBold: true

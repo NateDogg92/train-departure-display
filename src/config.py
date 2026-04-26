@@ -82,4 +82,30 @@ def loadConfig():
     if os.getenv("showDepartureNumbers", "").upper() == "TRUE":
         data["showDepartureNumbers"] = True
 
+    data["testDisruptionMessage"] = os.getenv("testDisruptionMessage") or ""
+
+    validateConfig(data)
     return data
+
+
+def validateConfig(data):
+    if data["refreshTime"] < 30:
+        print(f'Warning: refreshTime is {data["refreshTime"]}s which may cause API rate limiting')
+
+    if data["api"]["apiKey"] is None:
+        print("Warning: apiKey is not set - API calls will fail")
+
+    for screen in ("screen1", "screen2"):
+        envVal = os.getenv(f"{screen}PlatformSchedule") or ""
+        if envVal and not data["journey"][f"{screen}PlatformSchedule"]:
+            print(f'Warning: {screen}PlatformSchedule is set but could not be parsed - check format HH:MM-HH:MM=platform')
+
+    if os.getenv("operatingHours") and not data['hoursPattern'].match(os.getenv("operatingHours")):
+        print(f'Warning: operatingHours value "{os.getenv("operatingHours")}" is invalid - expected format HH-HH')
+
+    if os.getenv("screenBlankHours") and not data['hoursPattern'].match(os.getenv("screenBlankHours")):
+        print(f'Warning: screenBlankHours value "{os.getenv("screenBlankHours")}" is invalid - expected format HH-HH')
+
+    crs = data["journey"]["departureStation"]
+    if not re.match(r'^[A-Z]{3}$', crs):
+        print(f'Warning: departureStation "{crs}" does not look like a valid CRS code (expected 3 uppercase letters)')
