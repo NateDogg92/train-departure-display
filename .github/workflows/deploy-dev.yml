@@ -1,0 +1,20 @@
+name: Deploy dev branch to balenaCloud
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install balena CLI
+        run: npm install -g balena-cli
+
+      - name: Push to balenaCloud fleet
+        run: balena push train-departure-display --source .
+        env:
+          BALENA_API_TOKEN: ${{ secrets.BALENA_API_TOKEN }}
