@@ -131,10 +131,11 @@ def renderPlatform(departure):
     return drawText
 
 
-def renderCallingAt(draw, *_):
-    stations = "Calling at: "
-    _, _, bitmap = cachedBitmapText(stations, font)
-    draw.bitmap((0, 0), bitmap, fill="yellow")
+def renderCallingAt(label):
+    def drawText(draw, *_):
+        _, _, bitmap = cachedBitmapText(label, font)
+        draw.bitmap((0, 0), bitmap, fill="yellow")
+    return drawText
 
 
 bitmapRenderCache = {}
@@ -484,15 +485,13 @@ def drawSignage(device, width, height, data, screen_id='default'):
     virtualViewport = viewport(device, width=width, height=height)
 
     status = "Exp 00:00"
-    callingAt = "Calling at: "
     platform = "Plat 888"
 
     departures, firstDepartureDestinations, departureStation, disruptionMessage = data
     scrollingText = disruptionMessage if disruptionMessage else firstDepartureDestinations
 
-    w = int(font.getlength(callingAt))
-
-    callingWidth = w
+    callingAtLabel = "Attention: " if disruptionMessage else "Calling at: "
+    callingWidth = int(font.getlength(callingAtLabel))
     width = virtualViewport.width
 
     # First measure the text size
@@ -511,7 +510,7 @@ def drawSignage(device, width, height, data, screen_id='default'):
         width - w - pw - 5, 10, renderDestination(departures[0], firstFont, '1st'), interval=0.04)
     rowOneB = snapshot(w, 10, renderServiceStatus(departures[0], show_mins=True), interval=5)
     rowOneC = snapshot(pw, 10, renderPlatform(departures[0]), interval=config["refreshTime"])
-    rowTwoA = snapshot(callingWidth, 10, renderCallingAt, interval=config["refreshTime"])
+    rowTwoA = snapshot(callingWidth, 10, renderCallingAt(callingAtLabel), interval=config["refreshTime"])
     rowTwoB = snapshot(width - callingWidth, 10,
                        renderStations(scrollingText, screen_id), interval=0.02)
 
