@@ -43,13 +43,15 @@ def renderDestination(departure, font, pos):
             if dep_dt < now - timedelta(minutes=1):
                 dep_dt += timedelta(days=1)
             mins = int((dep_dt - now).total_seconds() / 60)
+            print(f'Departure {departureTime}: {mins} mins away (threshold {config["minsThreshold"]})')
             if mins <= 0:
                 displayTime = "Due"
             elif mins < config["minsThreshold"]:
                 displayTime = f"{mins}m"
             else:
                 displayTime = departureTime
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError, KeyError) as e:
+            print(f'renderDestination error: {e}')
             displayTime = departureTime
 
         if config["showDepartureNumbers"]:
@@ -523,7 +525,7 @@ def getVersionDate():
     return datetime.fromtimestamp(modification_timestamp).strftime('%d %b %Y')
 
 try:
-    print('Starting Train Departure Display v' + getVersionNumber())
+    print('Starting Train Departure Display v' + getVersionNumber().strip() + ' (branch: dev)')
     config = loadConfig()
     if config['headless']:
         print('Headless mode, running main loop without serial comms')
