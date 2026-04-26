@@ -94,6 +94,7 @@ data:
     - screen2PlatformSchedule: null
     - platformScheduleWeekdayOnly: true
     - testDisruptionMessage: null
+    - minsThreshold: 20
     - individualStationDepartureTime: false
     - showDepartureNumbers: false
     - firstDepartureBold: true

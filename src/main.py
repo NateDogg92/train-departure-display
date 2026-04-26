@@ -45,7 +45,7 @@ def renderDestination(departure, font, pos):
             mins = int((dep_dt - now).total_seconds() / 60)
             if mins <= 0:
                 displayTime = "Due"
-            elif mins < 60:
+            elif mins < config["minsThreshold"]:
                 displayTime = f"{mins}m"
             else:
                 displayTime = departureTime

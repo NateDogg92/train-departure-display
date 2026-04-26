@@ -83,6 +83,7 @@ def loadConfig():
         data["showDepartureNumbers"] = True
 
     data["testDisruptionMessage"] = os.getenv("testDisruptionMessage") or ""
+    data["minsThreshold"] = int(os.getenv("minsThreshold") or 20)
 
     validateConfig(data)
     return data

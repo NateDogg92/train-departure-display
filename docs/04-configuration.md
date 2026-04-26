@@ -26,6 +26,7 @@ These environment variables are specified using the [balenaCloud dashboard](http
 | `screen2PlatformSchedule` | `06:00-09:30=3,09:30-18:00=4` (time-based platform for screen 2, overrides `screen2Platform` during matching windows; same format as above)
 | `platformScheduleWeekdayOnly` | `True` (when `True`, the platform schedule only applies Monday–Friday; on weekends the display falls back to the static `screen1Platform`/`screen2Platform` values)
 | `testDisruptionMessage` | `Disruption on this line` (injects a fake disruption message into the scrolling row for testing; leave blank in normal use)
+| `minsThreshold` | `20` (departures within this many minutes will show as `Xm` or `Due` instead of `HH:MM`)
 | `individualStationDepartureTime` | `False` (Displays the estimated or scheduled time of the service at each leg of a journey)
 | `numericPlatformsOnly` | `False` This will only show numeric platforms, some stations may have local services that use alphabetic stations for local services (this will remove stations like 3A, 4B).
 | `fpsTime` | `4` (adjusts how often the effective FPS is displayed)
