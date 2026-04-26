@@ -39,19 +39,31 @@ def renderDestination(departure, font, pos):
 
     def drawText(draw, width, *_):
         if config["showDepartureNumbers"]:
-            train = f"{pos}  {departureTime}  {destinationName}"
+            prefix = f"{pos}  {departureTime}  "
         else:
-            train = f"{departureTime}  {destinationName}"
-        tw, _, bitmap = cachedBitmapText(train, font)
-        if tw <= width:
-            draw.bitmap((0, 0), bitmap, fill="yellow")
+            prefix = f"{departureTime}  "
+
+        prefix_w, _, prefix_bitmap = cachedBitmapText(prefix, font)
+        draw.bitmap((0, 0), prefix_bitmap, fill="yellow")
+
+        name_area_w = width - prefix_w
+        if name_area_w <= 0:
+            return
+
+        nw, nh, name_bitmap = cachedBitmapText(destinationName, font)
+
+        if nw <= name_area_w:
+            draw.bitmap((prefix_w, 0), name_bitmap, fill="yellow")
+            scroll_offset[0] = 0
+            pause_count[0] = 0
         else:
-            draw.bitmap((-scroll_offset[0], 0), bitmap, fill="yellow")
+            cropped = name_bitmap.crop((scroll_offset[0], 0, scroll_offset[0] + name_area_w, nh))
+            draw.bitmap((prefix_w, 0), cropped, fill="yellow")
             if pause_count[0] < 25:
                 pause_count[0] += 1
             else:
                 scroll_offset[0] += 1
-                if scroll_offset[0] > tw + 20:
+                if scroll_offset[0] > nw + 20:
                     scroll_offset[0] = 0
                     pause_count[0] = 0
 
