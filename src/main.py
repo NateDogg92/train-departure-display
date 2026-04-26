@@ -484,7 +484,7 @@ def drawSignage(device, width, height, data, screen_id='default'):
         firstFont = fontBold
 
     rowOneA = snapshot(
-        width - w - pw - 5, 10, renderDestination(departures[0], firstFont, '1st'), interval=config["refreshTime"])
+        width - w - pw, 10, renderDestination(departures[0], firstFont, '1st'), interval=config["refreshTime"])
     rowOneB = snapshot(w, 10, renderServiceStatus(departures[0], show_mins=True), interval=5)
     rowOneC = snapshot(pw, 10, renderPlatform(departures[0]), interval=config["refreshTime"])
     rowTwoA = snapshot(callingWidth, 10, renderCallingAt, interval=config["refreshTime"])
@@ -512,20 +512,20 @@ def drawSignage(device, width, height, data, screen_id='default'):
             virtualViewport.remove_hotspot(vhotspot, xy)
 
     virtualViewport.add_hotspot(rowOneA, (0, 0))
-    virtualViewport.add_hotspot(rowOneB, (width - w, 0))
-    virtualViewport.add_hotspot(rowOneC, (width - w - pw, 0))
+    virtualViewport.add_hotspot(rowOneB, (width - w - pw, 0))
+    virtualViewport.add_hotspot(rowOneC, (width - pw, 0))
     virtualViewport.add_hotspot(rowTwoA, (0, 12))
     virtualViewport.add_hotspot(rowTwoB, (callingWidth, 12))
 
     if len(departures) > 1:
         virtualViewport.add_hotspot(rowThreeA, (0, 24))
-        virtualViewport.add_hotspot(rowThreeB, (width - w, 24))
-        virtualViewport.add_hotspot(rowThreeC, (width - w - pw, 24))
+        virtualViewport.add_hotspot(rowThreeB, (width - w - pw, 24))
+        virtualViewport.add_hotspot(rowThreeC, (width - pw, 24))
 
     if len(departures) > 2:
         virtualViewport.add_hotspot(rowFourA, (0, 36))
-        virtualViewport.add_hotspot(rowFourB, (width - w, 36))
-        virtualViewport.add_hotspot(rowFourC, (width - w - pw, 36))
+        virtualViewport.add_hotspot(rowFourB, (width - w - pw, 36))
+        virtualViewport.add_hotspot(rowFourC, (width - pw, 36))
 
     virtualViewport.add_hotspot(rowTime, (0, 50))
 
