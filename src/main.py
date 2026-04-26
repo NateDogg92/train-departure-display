@@ -31,28 +31,30 @@ def makeFont(name, size):
     return ImageFont.truetype(font_path, size, layout_engine=ImageFont.Layout.BASIC)
 
 
-def renderDestination(departure, font, pos):
+def renderDestination(departure, font, pos, show_mins=False):
     departureTime = departure["aimed_departure_time"]
     destinationName = departure["destination_name"]
 
     def drawText(draw, *_):
-        try:
-            now = datetime.now()
-            dep_h, dep_m = [int(x) for x in departureTime.split(':')]
-            dep_dt = now.replace(hour=dep_h, minute=dep_m, second=0, microsecond=0)
-            if dep_dt < now - timedelta(minutes=1):
-                dep_dt += timedelta(days=1)
-            mins = int((dep_dt - now).total_seconds() / 60)
-            print(f'Departure {departureTime}: {mins} mins away (threshold {config["minsThreshold"]})')
-            if mins <= 0:
-                displayTime = "Due"
-            elif mins < config["minsThreshold"]:
-                displayTime = f"{mins}m"
-            else:
-                displayTime = departureTime
-        except (ValueError, AttributeError, KeyError) as e:
-            print(f'renderDestination error: {e}')
-            displayTime = departureTime
+        displayTime = departureTime
+        if show_mins:
+            try:
+                now = datetime.now()
+                dep_h, dep_m = [int(x) for x in departureTime.split(':')]
+                dep_dt = now.replace(hour=dep_h, minute=dep_m, second=0, microsecond=0)
+                if dep_dt < now - timedelta(minutes=1):
+                    dep_dt += timedelta(days=1)
+                mins = int((dep_dt - now).total_seconds() / 60)
+                if mins <= 0:
+                    minsDisplay = "Due"
+                elif mins < config["minsThreshold"]:
+                    minsDisplay = f"{mins}m"
+                else:
+                    minsDisplay = None
+                if minsDisplay and int(time.time()) % 20 < 10:
+                    displayTime = minsDisplay
+            except (ValueError, AttributeError, KeyError) as e:
+                print(f'renderDestination error: {e}')
 
         if config["showDepartureNumbers"]:
             train = f"{pos}  {displayTime}  {destinationName}"
@@ -453,7 +455,7 @@ def drawSignage(device, width, height, data, screen_id='default'):
         firstFont = fontBold
 
     rowOneA = snapshot(
-        width - w - pw - 5, 10, renderDestination(departures[0], firstFont, '1st'), interval=30)
+        width - w - pw - 5, 10, renderDestination(departures[0], firstFont, '1st', show_mins=True), interval=5)
     rowOneB = snapshot(w, 10, renderServiceStatus(
         departures[0]), interval=10)
     rowOneC = snapshot(pw, 10, renderPlatform(departures[0]), interval=config["refreshTime"])
@@ -463,14 +465,14 @@ def drawSignage(device, width, height, data, screen_id='default'):
 
     if len(departures) > 1:
         rowThreeA = snapshot(width - w - pw, 10, renderDestination(
-            departures[1], font, '2nd'), interval=30)
+            departures[1], font, '2nd'), interval=config["refreshTime"])
         rowThreeB = snapshot(w, 10, renderServiceStatus(
             departures[1]), interval=config["refreshTime"])
         rowThreeC = snapshot(pw, 10, renderPlatform(departures[1]), interval=config["refreshTime"])
 
     if len(departures) > 2:
         rowFourA = snapshot(width - w - pw, 10, renderDestination(
-            departures[2], font, '3rd'), interval=30)
+            departures[2], font, '3rd'), interval=config["refreshTime"])
         rowFourB = snapshot(w, 10, renderServiceStatus(
             departures[2]), interval=10)
         rowFourC = snapshot(pw, 10, renderPlatform(departures[2]), interval=config["refreshTime"])
