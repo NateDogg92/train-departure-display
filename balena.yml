@@ -92,10 +92,11 @@ data:
     - screen2Platform: null
     - screen1PlatformSchedule: null
     - screen2PlatformSchedule: null
+    - platformScheduleWeekdayOnly: true
     - individualStationDepartureTime: false
     - showDepartureNumbers: false
     - firstDepartureBold: true
     - targetFPS: 70
     - fpsTime: 10
     - debug: false
-version: 0.7.0
+version: 0.7.1

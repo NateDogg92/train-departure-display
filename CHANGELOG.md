@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1] (2026-04-26)
+
+### Features
+
+* **platform schedule**: add `screen1PlatformSchedule` and `screen2PlatformSchedule` environment variables to automatically switch the displayed platform at configurable times of day. Format: `HH:MM-HH:MM=platform` entries separated by commas (e.g. `06:00-09:30=1,09:30-18:00=2`). Falls back to the static `screen1Platform`/`screen2Platform` when no window matches.
+* **weekday-only schedule**: add `platformScheduleWeekdayOnly` environment variable (default `true`) to restrict platform schedule switching to weekdays only. On weekends the display falls back to the static platform setting.
+
 ## [0.7.0](https://github.com/chrisys/train-departure-display/compare/v0.6.3...v0.7.0) (2026-04-21)
 
 

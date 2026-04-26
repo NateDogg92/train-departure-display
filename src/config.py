@@ -72,6 +72,7 @@ def loadConfig():
     data["journey"]["screen2Platform"] = parsePlatformData(os.getenv("screen2Platform"))
     data["journey"]["screen1PlatformSchedule"] = parsePlatformSchedule(os.getenv("screen1PlatformSchedule") or "")
     data["journey"]["screen2PlatformSchedule"] = parsePlatformSchedule(os.getenv("screen2PlatformSchedule") or "")
+    data["journey"]["platformScheduleWeekdayOnly"] = os.getenv("platformScheduleWeekdayOnly", "True").upper() != "FALSE"
     data["journey"]["numericPlatformsOnly"] = os.getenv("numericPlatformsOnly", "False").lower() == "true"
     
     data["api"]["apiKey"] = os.getenv("apiKey") or None
