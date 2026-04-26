@@ -48,7 +48,7 @@ def renderDestination(departure, font, pos, show_mins=False):
                 if mins <= 0:
                     minsDisplay = "Due"
                 elif mins < config["minsThreshold"]:
-                    minsDisplay = f"{mins}m"
+                    minsDisplay = f"{mins} mins"
                 else:
                     minsDisplay = None
                 if minsDisplay and int(time.time()) % 20 < 10:
@@ -89,13 +89,13 @@ def renderServiceStatus(departure):
 
 
 def renderPlatform(departure):
-    def drawText(draw, *_):
+    def drawText(draw, width, *_):
         if "platform" in departure:
             platform = "Plat " + departure["platform"]
             if departure["platform"].lower() == "bus":
                 platform = "BUS"
-            _, _, bitmap = cachedBitmapText(platform, font)
-            draw.bitmap((0, 0), bitmap, fill="yellow")
+            w, _, bitmap = cachedBitmapText(platform, font)
+            draw.bitmap((width - w, 0), bitmap, fill="yellow")
     return drawText
 
 
@@ -408,9 +408,30 @@ def drawBlankSignage(device, width, height, departureStation):
 
     return virtualViewport
 
+def has_departed(departure):
+    try:
+        now = datetime.now()
+        h, m = [int(x) for x in departure["aimed_departure_time"].split(':')]
+        aimed = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        if aimed > now:
+            return False
+        expected = departure.get("expected_departure_time", "")
+        if expected in ("Cancelled", "Delayed"):
+            return False
+        if expected not in ("On time", departure["aimed_departure_time"]):
+            try:
+                eh, em = [int(x) for x in expected.split(':')]
+                aimed = now.replace(hour=eh, minute=em, second=0, microsecond=0)
+            except (ValueError, AttributeError):
+                pass
+        return (now - aimed).total_seconds() > 90
+    except (ValueError, AttributeError):
+        return False
+
+
 def platform_filter(departureData, platformNumber, station, numericOnly=False, disruptionMessage=""):
     platformDepartures = []
-    for sub in departureData:
+    for sub in [d for d in departureData if not has_departed(d)]:
         if numericOnly:
             if sub.get('platform') is not None and sub['platform'].isdigit():
                 platformDepartures.append(sub)
