@@ -31,16 +31,33 @@ def makeFont(name, size):
     return ImageFont.truetype(font_path, size, layout_engine=ImageFont.Layout.BASIC)
 
 
-def renderDestination(departure, font, pos, show_mins=False):
+def renderDestination(departure, font, pos):
     departureTime = departure["aimed_departure_time"]
     destinationName = departure["destination_name"]
 
     def drawText(draw, *_):
-        displayTime = departureTime
-        if show_mins:
+        if config["showDepartureNumbers"]:
+            train = f"{pos}  {departureTime}  {destinationName}"
+        else:
+            train = f"{departureTime}  {destinationName}"
+        _, _, bitmap = cachedBitmapText(train, font)
+        draw.bitmap((0, 0), bitmap, fill="yellow")
+
+    return drawText
+
+
+def renderServiceStatus(departure, show_mins=False):
+    def drawText(draw, width, *_):
+        expected = departure["expected_departure_time"]
+        aimed = departure["aimed_departure_time"]
+
+        if expected == "Cancelled":
+            train = "Cancelled"
+        elif show_mins:
             try:
                 now = datetime.now()
-                dep_h, dep_m = [int(x) for x in departureTime.split(':')]
+                dep_time_str = aimed if expected in ("On time", aimed) else expected
+                dep_h, dep_m = [int(x) for x in dep_time_str.split(':')]
                 dep_dt = now.replace(hour=dep_h, minute=dep_m, second=0, microsecond=0)
                 if dep_dt < now - timedelta(minutes=1):
                     dep_dt += timedelta(days=1)
@@ -48,44 +65,35 @@ def renderDestination(departure, font, pos, show_mins=False):
                 if mins <= 0:
                     minsDisplay = "Due"
                 elif mins < config["minsThreshold"]:
-                    minsDisplay = f"{mins} mins"
+                    minsDisplay = f"in {mins} mins"
                 else:
                     minsDisplay = None
+
                 if minsDisplay and int(time.time()) % 20 < 10:
-                    displayTime = minsDisplay
+                    train = minsDisplay
+                else:
+                    train = _status_text(expected, aimed)
             except (ValueError, AttributeError, KeyError) as e:
-                print(f'renderDestination error: {e}')
-
-        if config["showDepartureNumbers"]:
-            train = f"{pos}  {displayTime}  {destinationName}"
+                print(f'renderServiceStatus error: {e}')
+                train = _status_text(expected, aimed)
         else:
-            train = f"{displayTime}  {destinationName}"
-        _, _, bitmap = cachedBitmapText(train, font)
-        draw.bitmap((0, 0), bitmap, fill="yellow")
-
-    return drawText
-
-
-def renderServiceStatus(departure):
-    def drawText(draw, width, *_):
-        train = ""
-
-        if departure["expected_departure_time"] == "On time":
-            train = "On time"
-        elif departure["expected_departure_time"] == "Cancelled":
-            train = "Cancelled"
-        elif departure["expected_departure_time"] == "Delayed":
-            train = "Delayed"
-        else:
-            if isinstance(departure["expected_departure_time"], str):
-                train = 'Exp ' + departure["expected_departure_time"]
-
-            if departure["aimed_departure_time"] == departure["expected_departure_time"]:
-                train = "On time"
+            train = _status_text(expected, aimed)
 
         w, _, bitmap = cachedBitmapText(train, font)
         draw.bitmap((width - w, 0), bitmap, fill="yellow")
     return drawText
+
+
+def _status_text(expected, aimed):
+    if expected == "On time":
+        return "On time"
+    elif expected == "Delayed":
+        return "Delayed"
+    elif isinstance(expected, str):
+        if expected == aimed:
+            return "On time"
+        return "Exp " + expected
+    return ""
 
 
 def renderPlatform(departure):
@@ -476,9 +484,8 @@ def drawSignage(device, width, height, data, screen_id='default'):
         firstFont = fontBold
 
     rowOneA = snapshot(
-        width - w - pw - 5, 10, renderDestination(departures[0], firstFont, '1st', show_mins=True), interval=5)
-    rowOneB = snapshot(w, 10, renderServiceStatus(
-        departures[0]), interval=10)
+        width - w - pw - 5, 10, renderDestination(departures[0], firstFont, '1st'), interval=config["refreshTime"])
+    rowOneB = snapshot(w, 10, renderServiceStatus(departures[0], show_mins=True), interval=5)
     rowOneC = snapshot(pw, 10, renderPlatform(departures[0]), interval=config["refreshTime"])
     rowTwoA = snapshot(callingWidth, 10, renderCallingAt, interval=config["refreshTime"])
     rowTwoB = snapshot(width - callingWidth, 10,
