@@ -34,14 +34,26 @@ def makeFont(name, size):
 def renderDestination(departure, font, pos):
     departureTime = departure["aimed_departure_time"]
     destinationName = departure["destination_name"]
+    scroll_offset = [0]
+    pause_count = [0]
 
-    def drawText(draw, *_):
+    def drawText(draw, width, *_):
         if config["showDepartureNumbers"]:
             train = f"{pos}  {departureTime}  {destinationName}"
         else:
             train = f"{departureTime}  {destinationName}"
-        _, _, bitmap = cachedBitmapText(train, font)
-        draw.bitmap((0, 0), bitmap, fill="yellow")
+        tw, _, bitmap = cachedBitmapText(train, font)
+        if tw <= width:
+            draw.bitmap((0, 0), bitmap, fill="yellow")
+        else:
+            draw.bitmap((-scroll_offset[0], 0), bitmap, fill="yellow")
+            if pause_count[0] < 25:
+                pause_count[0] += 1
+            else:
+                scroll_offset[0] += 1
+                if scroll_offset[0] > tw + 20:
+                    scroll_offset[0] = 0
+                    pause_count[0] = 0
 
     return drawText
 
@@ -97,13 +109,13 @@ def _status_text(expected, aimed):
 
 
 def renderPlatform(departure):
-    def drawText(draw, width, *_):
+    def drawText(draw, *_):
         if "platform" in departure:
             platform = "Plat " + departure["platform"]
             if departure["platform"].lower() == "bus":
                 platform = "BUS"
-            w, _, bitmap = cachedBitmapText(platform, font)
-            draw.bitmap((width - w, 0), bitmap, fill="yellow")
+            _, _, bitmap = cachedBitmapText(platform, font)
+            draw.bitmap((0, 0), bitmap, fill="yellow")
     return drawText
 
 
@@ -484,7 +496,7 @@ def drawSignage(device, width, height, data, screen_id='default'):
         firstFont = fontBold
 
     rowOneA = snapshot(
-        width - w - pw, 10, renderDestination(departures[0], firstFont, '1st'), interval=config["refreshTime"])
+        width - w - pw - 5, 10, renderDestination(departures[0], firstFont, '1st'), interval=0.04)
     rowOneB = snapshot(w, 10, renderServiceStatus(departures[0], show_mins=True), interval=5)
     rowOneC = snapshot(pw, 10, renderPlatform(departures[0]), interval=config["refreshTime"])
     rowTwoA = snapshot(callingWidth, 10, renderCallingAt, interval=config["refreshTime"])
@@ -492,15 +504,15 @@ def drawSignage(device, width, height, data, screen_id='default'):
                        renderStations(scrollingText, screen_id), interval=0.02)
 
     if len(departures) > 1:
-        rowThreeA = snapshot(width - w - pw, 10, renderDestination(
-            departures[1], font, '2nd'), interval=config["refreshTime"])
+        rowThreeA = snapshot(width - w - pw - 5, 10, renderDestination(
+            departures[1], font, '2nd'), interval=0.04)
         rowThreeB = snapshot(w, 10, renderServiceStatus(
             departures[1]), interval=config["refreshTime"])
         rowThreeC = snapshot(pw, 10, renderPlatform(departures[1]), interval=config["refreshTime"])
 
     if len(departures) > 2:
-        rowFourA = snapshot(width - w - pw, 10, renderDestination(
-            departures[2], font, '3rd'), interval=config["refreshTime"])
+        rowFourA = snapshot(width - w - pw - 5, 10, renderDestination(
+            departures[2], font, '3rd'), interval=0.04)
         rowFourB = snapshot(w, 10, renderServiceStatus(
             departures[2]), interval=10)
         rowFourC = snapshot(pw, 10, renderPlatform(departures[2]), interval=config["refreshTime"])
@@ -512,20 +524,20 @@ def drawSignage(device, width, height, data, screen_id='default'):
             virtualViewport.remove_hotspot(vhotspot, xy)
 
     virtualViewport.add_hotspot(rowOneA, (0, 0))
-    virtualViewport.add_hotspot(rowOneB, (width - w - pw, 0))
-    virtualViewport.add_hotspot(rowOneC, (width - pw, 0))
+    virtualViewport.add_hotspot(rowOneB, (width - w, 0))
+    virtualViewport.add_hotspot(rowOneC, (width - w - pw, 0))
     virtualViewport.add_hotspot(rowTwoA, (0, 12))
     virtualViewport.add_hotspot(rowTwoB, (callingWidth, 12))
 
     if len(departures) > 1:
         virtualViewport.add_hotspot(rowThreeA, (0, 24))
-        virtualViewport.add_hotspot(rowThreeB, (width - w - pw, 24))
-        virtualViewport.add_hotspot(rowThreeC, (width - pw, 24))
+        virtualViewport.add_hotspot(rowThreeB, (width - w, 24))
+        virtualViewport.add_hotspot(rowThreeC, (width - w - pw, 24))
 
     if len(departures) > 2:
         virtualViewport.add_hotspot(rowFourA, (0, 36))
-        virtualViewport.add_hotspot(rowFourB, (width - w - pw, 36))
-        virtualViewport.add_hotspot(rowFourC, (width - pw, 36))
+        virtualViewport.add_hotspot(rowFourB, (width - w, 36))
+        virtualViewport.add_hotspot(rowFourC, (width - w - pw, 36))
 
     virtualViewport.add_hotspot(rowTime, (0, 50))
 
