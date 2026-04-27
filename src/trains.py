@@ -98,7 +98,7 @@ def ProcessDepartures(journeyConfig, APIOut):
     # parse NRCC disruption messages
     nrccMessages = []
     if 'lt4:nrccMessages' in stationBoard:
-        msgs = stationBoard['lt4:nrccMessages']['lt4:message']
+        msgs = stationBoard['lt4:nrccMessages'].get('lt4:message', [])
         if isinstance(msgs, str):
             msgs = [msgs]
         for msg in msgs:
