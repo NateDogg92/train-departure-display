@@ -90,32 +90,46 @@ def ProcessDepartures(journeyConfig, APIOut):
     APIElements = xmltodict.parse(APIOut)
     Services = []
 
+    stationBoard = APIElements['soap:Envelope']['soap:Body']['GetDepBoardWithDetailsResponse']['GetStationBoardResult']
+
     # get departure station name
-    departureStationName = APIElements['soap:Envelope']['soap:Body']['GetDepBoardWithDetailsResponse']['GetStationBoardResult']['lt4:locationName']
+    departureStationName = stationBoard['lt4:locationName']
+
+    # parse NRCC disruption messages
+    nrccMessages = []
+    if 'lt4:nrccMessages' in stationBoard:
+        msgs = stationBoard['lt4:nrccMessages'].get('lt4:message', [])
+        if isinstance(msgs, str):
+            msgs = [msgs]
+        for msg in msgs:
+            clean = re.sub(r'<[^>]+>', ' ', str(msg))
+            clean = ' '.join(clean.split())
+            if clean:
+                nrccMessages.append(clean)
 
     # if there are only train services from this station
-    if 'lt7:trainServices' in APIElements['soap:Envelope']['soap:Body']['GetDepBoardWithDetailsResponse']['GetStationBoardResult']:
-        Services = APIElements['soap:Envelope']['soap:Body']['GetDepBoardWithDetailsResponse']['GetStationBoardResult']['lt7:trainServices']['lt7:service']
+    if 'lt7:trainServices' in stationBoard:
+        Services = stationBoard['lt7:trainServices']['lt7:service']
         if isinstance(Services, dict):  # if there's only one service, it comes out as a dict
             Services = [Services]       # but it needs to be a list with a single element
 
         # if there are train and bus services from this station
-        if 'lt7:busServices' in APIElements['soap:Envelope']['soap:Body']['GetDepBoardWithDetailsResponse']['GetStationBoardResult']:
-            BusServices = APIElements['soap:Envelope']['soap:Body']['GetDepBoardWithDetailsResponse']['GetStationBoardResult']['lt7:busServices']['lt7:service']
+        if 'lt7:busServices' in stationBoard:
+            BusServices = stationBoard['lt7:busServices']['lt7:service']
             if isinstance(BusServices, dict):
                 BusServices = [BusServices]
             Services = ArrivalOrder(Services + BusServices)  # sort the bus and train services into one list in order of scheduled arrival time
 
     # if there are only bus services from this station
-    elif 'lt7:busServices' in APIElements['soap:Envelope']['soap:Body']['GetDepBoardWithDetailsResponse']['GetStationBoardResult']:
-        Services = APIElements['soap:Envelope']['soap:Body']['GetDepBoardWithDetailsResponse']['GetStationBoardResult']['lt7:busServices']['lt7:service']
+    elif 'lt7:busServices' in stationBoard:
+        Services = stationBoard['lt7:busServices']['lt7:service']
         if isinstance(Services, dict):
             Services = [Services]
 
     # if there are no trains or buses
     else:
         Services = None
-        return None, departureStationName
+        return None, departureStationName, nrccMessages
 
     # we create a new list of dicts to hold the services
     Departures = [{}] * len(Services)
@@ -211,7 +225,7 @@ def ProcessDepartures(journeyConfig, APIOut):
 
         Departures[servicenum] = thisDeparture
 
-    return Departures, departureStationName
+    return Departures, departureStationName, nrccMessages
 
 
 def loadDeparturesForStation(journeyConfig, apiKey, rows):
@@ -226,7 +240,9 @@ def loadDeparturesForStation(journeyConfig, apiKey, rows):
     destinations = journeyConfig["destinationStation"]
     allDepartures = []
     departureStationName = ""
+    allNrccMessages = []
     seenServices = set()
+    seenMessages = set()
 
     for destination in destinations:
         APIRequest = """
@@ -249,7 +265,7 @@ def loadDeparturesForStation(journeyConfig, apiKey, rows):
         headers = {'Content-Type': 'text/xml'}
         apiURL = "https://lite.realtime.nationalrail.co.uk/OpenLDBWS/ldb11.asmx"
         APIOut = requests.post(apiURL, data=APIRequest, headers=headers, timeout=10).text
-        Departures, departureStationName = ProcessDepartures(journeyConfig, APIOut)
+        Departures, departureStationName, nrccMessages = ProcessDepartures(journeyConfig, APIOut)
 
         if Departures:
             for departure in Departures:
@@ -258,6 +274,11 @@ def loadDeparturesForStation(journeyConfig, apiKey, rows):
                     seenServices.add(key)
                     allDepartures.append(departure)
 
+        for msg in nrccMessages:
+            if msg not in seenMessages:
+                seenMessages.add(msg)
+                allNrccMessages.append(msg)
+
     allDepartures = sorted(allDepartures, key=lambda x: x["aimed_departure_time"])
 
-    return allDepartures if allDepartures else None, departureStationName
+    return allDepartures if allDepartures else None, departureStationName, allNrccMessages

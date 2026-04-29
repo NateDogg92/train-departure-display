@@ -3,7 +3,7 @@ import time
 
 import requests
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from PIL import ImageFont, Image, ImageDraw
 
 from trains import loadDeparturesForStation
@@ -34,38 +34,90 @@ def makeFont(name, size):
 def renderDestination(departure, font, pos):
     departureTime = departure["aimed_departure_time"]
     destinationName = departure["destination_name"]
+    scroll_offset = [0]
+    pause_count = [0]
 
-    def drawText(draw, *_):
+    def drawText(draw, width, *_):
         if config["showDepartureNumbers"]:
-            train = f"{pos}  {departureTime}  {destinationName}"
+            prefix = f"{pos}  {departureTime}  "
         else:
-            train = f"{departureTime}  {destinationName}"
-        _, _, bitmap = cachedBitmapText(train, font)
-        draw.bitmap((0, 0), bitmap, fill="yellow")
+            prefix = f"{departureTime}  "
+
+        prefix_w, _, prefix_bitmap = cachedBitmapText(prefix, font)
+        draw.bitmap((0, 0), prefix_bitmap, fill="yellow")
+
+        name_area_w = width - prefix_w
+        if name_area_w <= 0:
+            return
+
+        nw, nh, name_bitmap = cachedBitmapText(destinationName, font)
+
+        if nw <= name_area_w:
+            draw.bitmap((prefix_w, 0), name_bitmap, fill="yellow")
+            scroll_offset[0] = 0
+            pause_count[0] = 0
+        else:
+            cropped = name_bitmap.crop((scroll_offset[0], 0, scroll_offset[0] + name_area_w, nh))
+            draw.bitmap((prefix_w, 0), cropped, fill="yellow")
+            if pause_count[0] < 25:
+                pause_count[0] += 1
+            else:
+                scroll_offset[0] += 1
+                if scroll_offset[0] > nw + 20:
+                    scroll_offset[0] = 0
+                    pause_count[0] = 0
 
     return drawText
 
 
-def renderServiceStatus(departure):
+def renderServiceStatus(departure, show_mins=False):
     def drawText(draw, width, *_):
-        train = ""
+        expected = departure["expected_departure_time"]
+        aimed = departure["aimed_departure_time"]
 
-        if departure["expected_departure_time"] == "On time":
-            train = "On time"
-        elif departure["expected_departure_time"] == "Cancelled":
+        if expected == "Cancelled":
             train = "Cancelled"
-        elif departure["expected_departure_time"] == "Delayed":
-            train = "Delayed"
-        else:
-            if isinstance(departure["expected_departure_time"], str):
-                train = 'Exp ' + departure["expected_departure_time"]
+        elif show_mins:
+            try:
+                now = datetime.now()
+                dep_time_str = aimed if expected in ("On time", aimed) else expected
+                dep_h, dep_m = [int(x) for x in dep_time_str.split(':')]
+                dep_dt = now.replace(hour=dep_h, minute=dep_m, second=0, microsecond=0)
+                if dep_dt < now - timedelta(minutes=1):
+                    dep_dt += timedelta(days=1)
+                mins = int((dep_dt - now).total_seconds() / 60)
+                if mins <= 0:
+                    minsDisplay = "Due"
+                elif mins < config["minsThreshold"]:
+                    minsDisplay = f"in {mins} mins"
+                else:
+                    minsDisplay = None
 
-            if departure["aimed_departure_time"] == departure["expected_departure_time"]:
-                train = "On time"
+                if minsDisplay and int(time.time()) % 20 < 10:
+                    train = minsDisplay
+                else:
+                    train = _status_text(expected, aimed)
+            except (ValueError, AttributeError, KeyError) as e:
+                print(f'renderServiceStatus error: {e}')
+                train = _status_text(expected, aimed)
+        else:
+            train = _status_text(expected, aimed)
 
         w, _, bitmap = cachedBitmapText(train, font)
         draw.bitmap((width - w, 0), bitmap, fill="yellow")
     return drawText
+
+
+def _status_text(expected, aimed):
+    if expected == "On time":
+        return "On time"
+    elif expected == "Delayed":
+        return "Delayed"
+    elif isinstance(expected, str):
+        if expected == aimed:
+            return "On time"
+        return "Exp " + expected
+    return ""
 
 
 def renderPlatform(departure):
@@ -79,10 +131,11 @@ def renderPlatform(departure):
     return drawText
 
 
-def renderCallingAt(draw, *_):
-    stations = "Calling at: "
-    _, _, bitmap = cachedBitmapText(stations, font)
-    draw.bitmap((0, 0), bitmap, fill="yellow")
+def renderCallingAt(label):
+    def drawText(draw, *_):
+        _, _, bitmap = cachedBitmapText(label, font)
+        draw.bitmap((0, 0), bitmap, fill="yellow")
+    return drawText
 
 
 bitmapRenderCache = {}
@@ -261,18 +314,25 @@ def loadData(apiConfig, journeyConfig, config):
     rows = "10"
 
     try:
-        departures, stationName = loadDeparturesForStation(
+        departures, stationName, nrccMessages = loadDeparturesForStation(
             journeyConfig, apiConfig["apiKey"], rows)
 
         if departures is None:
-            return False, False, stationName
+            return False, False, stationName, ""
+
+        if config.get('testDisruptionMessage'):
+            nrccMessages = [config['testDisruptionMessage']]
+
+        disruptionMessage = nrccMessages[0] if nrccMessages else ""
+        if disruptionMessage:
+            print(f'Disruption: {disruptionMessage}')
 
         firstDepartureDestinations = departures[0]["calling_at_list"]
-        return departures, firstDepartureDestinations, stationName
+        return departures, firstDepartureDestinations, stationName, disruptionMessage
     except requests.RequestException as err:
         print("Error: Failed to fetch data from OpenLDBWS")
         print(err.__context__)
-        return False, False, journeyConfig['outOfHoursName']
+        return False, False, journeyConfig['outOfHoursName'], ""
 
 
 def drawStartup(device, width, height):
@@ -381,9 +441,30 @@ def drawBlankSignage(device, width, height, departureStation):
 
     return virtualViewport
 
-def platform_filter(departureData, platformNumber, station, numericOnly=False):
+def has_departed(departure):
+    try:
+        now = datetime.now()
+        h, m = [int(x) for x in departure["aimed_departure_time"].split(':')]
+        aimed = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        if aimed > now:
+            return False
+        expected = departure.get("expected_departure_time", "")
+        if expected in ("Cancelled", "Delayed"):
+            return False
+        if expected not in ("On time", departure["aimed_departure_time"]):
+            try:
+                eh, em = [int(x) for x in expected.split(':')]
+                aimed = now.replace(hour=eh, minute=em, second=0, microsecond=0)
+            except (ValueError, AttributeError):
+                pass
+        return (now - aimed).total_seconds() > 90
+    except (ValueError, AttributeError):
+        return False
+
+
+def platform_filter(departureData, platformNumber, station, numericOnly=False, disruptionMessage=""):
     platformDepartures = []
-    for sub in departureData:
+    for sub in [d for d in departureData if not has_departed(d)]:
         if numericOnly:
             if sub.get('platform') is not None and sub['platform'].isdigit():
                 platformDepartures.append(sub)
@@ -395,23 +476,22 @@ def platform_filter(departureData, platformNumber, station, numericOnly=False):
                 platformDepartures.append(res)
     if len(platformDepartures) > 0:
         firstDepartureDestinations = platformDepartures[0]["calling_at_list"]
-        platformData = platformDepartures, firstDepartureDestinations, station
+        platformData = platformDepartures, firstDepartureDestinations, station, disruptionMessage
     else:
-        platformData = platformDepartures, "", station
+        platformData = platformDepartures, "", station, disruptionMessage
     return platformData
 
 def drawSignage(device, width, height, data, screen_id='default'):
     virtualViewport = viewport(device, width=width, height=height)
 
     status = "Exp 00:00"
-    callingAt = "Calling at: "
     platform = "Plat 888"
 
-    departures, firstDepartureDestinations, departureStation = data
+    departures, firstDepartureDestinations, departureStation, disruptionMessage = data
+    scrollingText = disruptionMessage if disruptionMessage else firstDepartureDestinations
 
-    w = int(font.getlength(callingAt))
-
-    callingWidth = w
+    callingAtLabel = "Attention: " if disruptionMessage else "Calling at: "
+    callingWidth = int(font.getlength(callingAtLabel))
     width = virtualViewport.width
 
     # First measure the text size
@@ -427,24 +507,23 @@ def drawSignage(device, width, height, data, screen_id='default'):
         firstFont = fontBold
 
     rowOneA = snapshot(
-        width - w - pw - 5, 10, renderDestination(departures[0], firstFont, '1st'), interval=config["refreshTime"])
-    rowOneB = snapshot(w, 10, renderServiceStatus(
-        departures[0]), interval=10)
+        width - w - pw - 5, 10, renderDestination(departures[0], firstFont, '1st'), interval=0.04)
+    rowOneB = snapshot(w, 10, renderServiceStatus(departures[0], show_mins=True), interval=5)
     rowOneC = snapshot(pw, 10, renderPlatform(departures[0]), interval=config["refreshTime"])
-    rowTwoA = snapshot(callingWidth, 10, renderCallingAt, interval=config["refreshTime"])
+    rowTwoA = snapshot(callingWidth, 10, renderCallingAt(callingAtLabel), interval=config["refreshTime"])
     rowTwoB = snapshot(width - callingWidth, 10,
-                       renderStations(firstDepartureDestinations, screen_id), interval=0.02)
+                       renderStations(scrollingText, screen_id), interval=0.02)
 
     if len(departures) > 1:
-        rowThreeA = snapshot(width - w - pw, 10, renderDestination(
-            departures[1], font, '2nd'), interval=config["refreshTime"])
+        rowThreeA = snapshot(width - w - pw - 5, 10, renderDestination(
+            departures[1], font, '2nd'), interval=0.04)
         rowThreeB = snapshot(w, 10, renderServiceStatus(
             departures[1]), interval=config["refreshTime"])
         rowThreeC = snapshot(pw, 10, renderPlatform(departures[1]), interval=config["refreshTime"])
 
     if len(departures) > 2:
-        rowFourA = snapshot(width - w - pw, 10, renderDestination(
-            departures[2], font, '3rd'), interval=10)
+        rowFourA = snapshot(width - w - pw - 5, 10, renderDestination(
+            departures[2], font, '3rd'), interval=0.04)
         rowFourB = snapshot(w, 10, renderServiceStatus(
             departures[2]), interval=10)
         rowFourC = snapshot(pw, 10, renderPlatform(departures[2]), interval=config["refreshTime"])
@@ -499,7 +578,7 @@ def getVersionDate():
     return datetime.fromtimestamp(modification_timestamp).strftime('%d %b %Y')
 
 try:
-    print('Starting Train Departure Display v' + getVersionNumber())
+    print('Starting Train Departure Display v' + getVersionNumber().strip() + ' (branch: main)')
     config = loadConfig()
     if config['headless']:
         print('Headless mode, running main loop without serial comms')
@@ -581,15 +660,16 @@ try:
                             departureData = data[0]
                             nextStations = data[1]
                             station = data[2]
+                            disruptionMessage = data[3]
                             screen1Platform = platformForTime(config["journey"]["screen1PlatformSchedule"], config["journey"]["screen1Platform"], config["journey"]["platformScheduleWeekdayOnly"])
                             print(f'Screen 1 active platform: "{screen1Platform or "all"}"')
-                            screenData = platform_filter(departureData, screen1Platform, station, config["journey"]["numericPlatformsOnly"])
+                            screenData = platform_filter(departureData, screen1Platform, station, config["journey"]["numericPlatformsOnly"], disruptionMessage)
                             virtual = drawSignage(device, width=widgetWidth, height=widgetHeight, data=screenData, screen_id='screen1')
 
                             if config['dualScreen']:
                                 screen2Platform = platformForTime(config["journey"]["screen2PlatformSchedule"], config["journey"]["screen2Platform"], config["journey"]["platformScheduleWeekdayOnly"])
                                 print(f'Screen 2 active platform: "{screen2Platform or "all"}"')
-                                screen1Data = platform_filter(departureData, screen2Platform, station, config["journey"]["numericPlatformsOnly"])
+                                screen1Data = platform_filter(departureData, screen2Platform, station, config["journey"]["numericPlatformsOnly"], disruptionMessage)
                                 virtual1 = drawSignage(device1, width=widgetWidth, height=widgetHeight, data=screen1Data, screen_id='screen2')
 
                     timeAtStart = time.time()
