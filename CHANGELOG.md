@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.0] (2026-04-29)
+
+### Features
+
+* **minutes to departure**: first departure status slot now cycles every 10 seconds between the service status (On time / Delayed / Exp HH:MM) and "in X mins" / "Due". Uses the expected departure time when a train is running late so the countdown reflects the actual delay. Controlled by `minsThreshold` (default `20`) — trains beyond this many minutes ahead show status only.
+* **disruption messages**: NRCC advisory messages from the National Rail API are now parsed and displayed in the scrolling row. The label switches from "Calling at:" to "Attention:" when a disruption is active. Use `testDisruptionMessage` to inject a fake message for testing.
+* **ticker tape scrolling**: when a destination name is too long to fit in the available space the name scrolls left as a ticker tape. The departure time and position number (1st/2nd/3rd) remain static.
+* **departed train filtering**: trains are now filtered out locally once they have passed their departure time (90-second grace period), so stale departures clear from the board without waiting for the next API refresh.
+* **config validation**: startup now logs warnings for missing API key, invalid station codes, malformed hours patterns and unparseable platform schedules.
+* **CI/CD**: GitHub Actions workflow automatically deploys to balenaCloud on push to `dev` or `main`.
+
+### Bug Fixes
+
+* **disruption messages**: fixed crash when the API returns an `lt4:nrccMessages` container with no `lt4:message` child element.
+
 ## [0.7.1] (2026-04-26)
 
 ### Features

@@ -578,7 +578,7 @@ def getVersionDate():
     return datetime.fromtimestamp(modification_timestamp).strftime('%d %b %Y')
 
 try:
-    print('Starting Train Departure Display v' + getVersionNumber().strip() + ' (branch: dev)')
+    print('Starting Train Departure Display v' + getVersionNumber().strip() + ' (branch: main)')
     config = loadConfig()
     if config['headless']:
         print('Headless mode, running main loop without serial comms')
